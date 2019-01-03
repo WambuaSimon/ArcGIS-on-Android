@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <com.esri.arcgisruntime.mapping.view.SceneView
+    <com.esri.arcgisruntime.mapping.view.MapView
         android:id="@+id/map1"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -18,5 +18,18 @@
         android:layout_marginEnd="8dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"/>
+
+
+    <ListView
+        android:id="@+id/listview"
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginLeft="12dp"
+        android:layout_marginTop="12dp"
+        android:background="@android:color/background_light"
+        android:divider="@android:drawable/divider_horizontal_textfield"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </android.support.constraint.ConstraintLayout>
