@@ -11,44 +11,49 @@ import com.esri.arcgisruntime.geometry.Point;
 import com.esri.arcgisruntime.geometry.SpatialReference;
 import com.esri.arcgisruntime.geometry.SpatialReferences;
 import com.esri.arcgisruntime.mapping.ArcGISMap;
+import com.esri.arcgisruntime.mapping.ArcGISScene;
+import com.esri.arcgisruntime.mapping.ArcGISTiledElevationSource;
 import com.esri.arcgisruntime.mapping.Basemap;
 import com.esri.arcgisruntime.mapping.Viewpoint;
+import com.esri.arcgisruntime.mapping.view.Camera;
 import com.esri.arcgisruntime.mapping.view.DefaultMapViewOnTouchListener;
+import com.esri.arcgisruntime.mapping.view.DefaultSceneViewOnTouchListener;
 import com.esri.arcgisruntime.mapping.view.MapView;
+import com.esri.arcgisruntime.mapping.view.SceneView;
 
 public class MainActivity extends AppCompatActivity {
     MapView mv;
+    SceneView sv;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mv = (MapView) findViewById(R.id.map1);
-        ArcGISMap myMap = new ArcGISMap(Basemap.createNationalGeographic());
-//        Viewpoint myViewpoint = new Viewpoint(-1.283120,36.806990,200000);
-//        myMap.setInitialViewpoint(myViewpoint);
-//        ArcGISMap map = new ArcGISMap(Basemap.Type.IMAGERY, -1.283120,36.806990,11);
-        Envelope myEnvelope = new Envelope(-122.396659, 37.835778, -122.341212, 37.809201,
-                SpatialReference.create(4326));
-        Viewpoint myViewpoint2 = new Viewpoint(myEnvelope);
-        myMap.setInitialViewpoint(myViewpoint2);
-        mv.setMap(myMap);
-        mv.setOnTouchListener(new DefaultMapViewOnTouchListener(this,mv) {
+        sv = (SceneView) findViewById(R.id.map1);
+        ArcGISScene myScene = new ArcGISScene(Basemap.createTopographic());
+        sv.setScene(myScene);
+
+        Camera myCamera = new Camera(35.59520, 138.78045, 2719.97086, 195.47934, 79.357552, 0.0);
+        sv.setViewpointCamera(myCamera);
+        ArcGISTiledElevationSource myElevation = new ArcGISTiledElevationSource(getString(R.string.elevation3dUrl));
+        myScene.getBaseSurface().getElevationSources().add(myElevation);
+
+        sv.setOnTouchListener(new DefaultSceneViewOnTouchListener(sv) {
             @Override
             public boolean onSingleTapConfirmed(MotionEvent e) {
-                int x = (int)e.getX();
-                int y = (int)e.getY();
-                android.graphics.Point clickedPoint = new android.graphics.Point(x,y);
-                Point myWebMercatorPoint = mv.screenToLocation(clickedPoint);
-                Point myWGS84Point = (Point) GeometryEngine.project(myWebMercatorPoint,
-                        SpatialReferences.getWgs84());
 
-                Toast.makeText(getApplicationContext(), "map is touched ! " + myWGS84Point.getX() +
-                                " \n" + myWGS84Point.getY(),
-                        Toast.LENGTH_LONG).show();
+                String lat1 = String.valueOf("Lat: " + sv.getCurrentViewpointCamera().getLocation().getX());
+                String lon1 = String.valueOf("Lon: " + sv.getCurrentViewpointCamera().getLocation().getY());
+                String ele1 = String.valueOf("Elevation: " + sv.getCurrentViewpointCamera().getLocation().getZ());
+                String heading = String.valueOf("Heading: " + sv.getCurrentViewpointCamera().getHeading());
+                String pitching = String.valueOf("Pitching: " + sv.getCurrentViewpointCamera().getPitch());
+                String roll = String.valueOf("Roll: " + sv.getCurrentViewpointCamera().getRoll());
+                Toast.makeText(getApplicationContext(),
+                        lat1 + "\n" + lon1 + "\n" + ele1 + "\n" + heading + "\n" + pitching + "\n" + roll, Toast.LENGTH_SHORT).show();
 
                 return true;
+
             }
         });
 
@@ -57,12 +62,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        mv.pause();
+        sv.pause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        mv.resume();
+        sv.resume();
     }
 }
