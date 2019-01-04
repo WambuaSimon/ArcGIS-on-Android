@@ -8,4 +8,8 @@
     <string name="treasure_island">Treasure Island</string>
     <string name="san_jose">San Jose</string>
     <string name="long_beach">Long Beach</string>
+    <string name="palo_alto">Palo Alto</string>
+    <string
+        name="geoCode_server">"http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer"</string>
+    <string name="geocoding_error">Failed to find the address</string>
 </resources>
