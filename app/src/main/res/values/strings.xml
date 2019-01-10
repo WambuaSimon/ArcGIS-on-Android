@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">ArcGIS</string>
-    <string
-        name="elevation3dUrl">"http://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer"</string>
+    <string name="elevation3dUrl">"http://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer"</string>
 
     <!-- bookmark names -->
     <string name="san_francisco">San Francisco</string>
@@ -9,7 +8,19 @@
     <string name="san_jose">San Jose</string>
     <string name="long_beach">Long Beach</string>
     <string name="palo_alto">Palo Alto</string>
-    <string
-        name="geoCode_server">"http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer"</string>
+    <string name="geoCode_server">"http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer"</string>
     <string name="geocoding_error">Failed to find the address</string>
+    <string name="open">Open drawer</string>
+    <string name="close">Close drawer</string>
+    <string-array name="basemaps">
+        <item>Streets Map</item>
+        <item>Satelite Map</item>
+        <item>Topographic Map</item>
+        <item>Open Streets Map</item>
+    </string-array>
+
+    <string name="hakone">Hakone</string>
+    <string name="shinjuku">Shinjuku</string>
+    <string name="kawaguchi">Kawaguchi</string>
+    <string name="newBookmark">Hakone_2</string>
 </resources>

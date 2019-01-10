@@ -1,9 +1,13 @@
 package com.narse.arcgis;
 
+import android.app.AlertDialog;
 import android.app.SearchManager;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Color;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.SearchView;
@@ -47,11 +51,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 
-public class MainActivity extends AppCompatActivity {
-    MapView mv;
+public class MainActivity extends AppCompatActivity implements AdapterView.OnItemClickListener {
+    String[] basemapNames;
+    boolean myFlag;
     private ListView cityList;
     private ArrayAdapter myAdapter;
-    private Callout myCallout;
+    ArcGISScene myScene;
+    Viewpoint homeViewpoint;
+    private SceneView sv;
+    private ActionBarDrawerToggle myToggle;
+    private DrawerLayout myDrawerLayout;
+    private ListView myLeftDrawerList;
     String[] cities = {
             "New York",
             "Chicago",
@@ -60,133 +70,120 @@ public class MainActivity extends AppCompatActivity {
             "Las Vegas",
             "Paris"
     };
-    private ArcGISMap myMap;
-    private Viewpoint homeViewpoint;
-    boolean myFlag;
     private BookmarkList myBookmarks;
     private Bookmark myBookmark;
     private ArrayList myBookmarksList;
-    private String myQuery;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mv = (MapView) findViewById(R.id.map1);
-        myMap = new ArcGISMap(Basemap.createStreets());
-        homeViewpoint = new Viewpoint(37.754178, -122.448095, 271261);
-        myMap.setInitialViewpoint(homeViewpoint);
-        mv.setMap(myMap);
-        myMap.addDoneLoadingListener(new Runnable() {
-            @Override
-            public void run() {
-                mv.setMagnifierEnabled(true);
-                mv.setCanMagnifierPanMap(true);
-            }
-        });
+        sv = (SceneView) findViewById(R.id.map1);
+        myScene = new ArcGISScene(Basemap.createImagery());
+        sv.setScene(myScene);
 
-        FloatingActionButton myFab = (FloatingActionButton) findViewById(R.id.myButton1);
-        myFab.setOnClickListener(myFabOnClickListener);
+        ArcGISTiledElevationSource myElevation = new ArcGISTiledElevationSource(getString(R.string.elevation3dUrl));
+        myScene.getBaseSurface().getElevationSources().add(myElevation);
 
-        mv.setOnTouchListener(new DefaultMapViewOnTouchListener(this, mv) {
-            @Override
-            public boolean onSingleTapConfirmed(MotionEvent e) {
-
-                android.graphics.Point screenPt = new android.graphics.Point(Math.round(e.getX()),
-                        Math.round(e.getY()));
-                Point mapPt = mMapView.screenToLocation(screenPt);
-                Point wgs84Pt = (Point) GeometryEngine.project(mapPt, SpatialReferences.getWgs84());
-
-                TextView myCalloutWords = new TextView(getApplicationContext());
-                myCalloutWords.setTextColor(Color.BLUE);
-                myCalloutWords.setLines(3);
-                myCalloutWords.setText("Lat: " + String.format(Locale.US,
-                        "%.6f", wgs84Pt.getY()) +
-                        ",\nLon: " + String.format(Locale.US,
-                        "%.6f", wgs84Pt.getX()) + ",\nScale: " + mv.getMapScale());
-                myCallout = mv.getCallout();
-
-                myCallout.setLocation(mapPt);
-                myCallout.setContent(myCalloutWords);
-                if (myCallout.isShowing()) {
-                    myCallout.dismiss();
-                } else {
-                    myCallout.show();
-                }
-                return true;
-            }
-        });
-
-        myBookmarks = myMap.getBookmarks();
+        Point pt = new Point(35.59520, 138.78045, SpatialReference.create(4326));
+        Camera myCamera = new Camera(35.59520, 138.78045, 2719.97086, 195.47934, 79.357552, 0.0);
+        homeViewpoint = new Viewpoint(pt, 50000, myCamera);
+        myScene.setInitialViewpoint(homeViewpoint);
+        sv.setViewpointCamera(myCamera);
+        myBookmarks = myScene.getBookmarks();
         myBookmarksList = new ArrayList();
-
+//create a default bookmarks and add all bookmark items to the ArrayList
         createBookmarks();
-
-        cityList = (ListView) findViewById(R.id.listview);
+        cityList = findViewById(R.id.listview);
         myAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1,
                 myBookmarksList);
         cityList.setAdapter(myAdapter);
         cityList.setVisibility(View.GONE);
+
         cityList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                mv.setViewpointAsync(myBookmarks.get(i).getViewpoint());
+                cityList.setVisibility(View.GONE);
+                myFlag = false;
+                sv.setViewpointAsync(myBookmarks.get(i).getViewpoint());
                 Toast.makeText(getApplicationContext()
                         , myBookmarks.get(i).getName(), Toast.LENGTH_SHORT).show();
             }
         });
 
 
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.main, menu);
-
-        // Configure SearchView
-        final SearchManager searchMgr = (SearchManager)
-                getSystemService(Context.SEARCH_SERVICE);
-        SearchView searchView = (SearchView) menu.findItem(R.id.search1).getActionView();
-        searchView.setQueryHint("input address here");
-        searchView.setSearchableInfo(searchMgr.getSearchableInfo(getComponentName()));
-//display the submit button
-        searchView.setSubmitButtonEnabled(true);
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
             @Override
-            public boolean onQueryTextSubmit(String query) {
-                myQuery = query;
-                Toast.makeText(MainActivity.this, "You are searching: " + myQuery, Toast.LENGTH_LONG).show();
-                searchNewPlace();
-
-                return true;
-            }
-
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                return false;
+            public void onClick(View v) {
+                sv.setViewpointCameraAsync(homeViewpoint.getCamera(), 6);
+                Toast.makeText(MainActivity.this, "Fab clicked", Toast.LENGTH_LONG).show();
             }
         });
 
-        return true;
+        myDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        myLeftDrawerList = (ListView) findViewById(R.id.left_drawer);
+        basemapNames = getResources().getStringArray(R.array.basemaps);
+        myLeftDrawerList.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1,
+                basemapNames));
+        this.getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        myLeftDrawerList.setOnItemClickListener(this);
+        configureToggle();
+        sv.setOnTouchListener(new DefaultSceneViewOnTouchListener(sv) {
+            @Override
+            public boolean onSingleTapConfirmed(MotionEvent e) {
+                android.graphics.Point screenPt = new android.graphics.Point(Math.round(e.getX()),
+                        Math.round(e.getY()));
+                final ListenableFuture<Point> mapPt = sv.screenToLocationAsync(screenPt);
+                showAlertDialog();
+                return true;
+            }
+        });
+    }
+
+    void showAlertDialog() {
+        AlertDialog.Builder dialog = new AlertDialog.Builder(MainActivity.this);
+        dialog.setTitle("Map Viewpoint Information:");
+        String lat1 = String.valueOf("Lat: " + sv.getCurrentViewpointCamera().getLocation().getX());
+        String lon1 = String.valueOf("Lon: " + sv.getCurrentViewpointCamera().getLocation().getY());
+        String ele1 = String.valueOf("Elevation: " +
+                sv.getCurrentViewpointCamera().getLocation().getZ());
+        String heading = String.valueOf("Heading: " +
+                sv.getCurrentViewpointCamera().getHeading());
+        String pitching = String.valueOf("Pitching: " + sv.getCurrentViewpointCamera().getPitch());
+        String roll = String.valueOf("Roll: " + sv.getCurrentViewpointCamera().getRoll());
+        dialog.setMessage(lat1 + "\n" + lon1 + "\n" + ele1 + "\n" + heading + "\n" + pitching + "\n" + roll);
+        dialog.setPositiveButton("I got it!", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface arg0, int arg1) {
+                Toast.makeText(MainActivity.this, "I got it!", Toast.LENGTH_SHORT).show();
+            }
+        });
+        dialog.setNeutralButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface arg0, int arg1) {
+                Toast.makeText(MainActivity.this, "Cancel", Toast.LENGTH_SHORT).show();
+            }
+        });
+        dialog.show();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        sv.pause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        sv.resume();
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-
-            case R.id.action_item1:
-                myMap.setBasemap(Basemap.createStreets());
-                return true;
-            case R.id.action_item2:
-                myMap.setBasemap(Basemap.createImagery());
-                return true;
-            case R.id.action_item3:
-                myMap.setBasemap(Basemap.createTopographic());
-                return true;
-            case R.id.action_item4:
-                myMap.setBasemap(Basemap.createOpenStreetMap());
-                return true;
             case R.id.bookmarks1:
                 if (myFlag) {
                     cityList.setVisibility(View.GONE);
@@ -196,91 +193,92 @@ public class MainActivity extends AppCompatActivity {
                     myFlag = true;
                 }
                 return true;
-
             default:
-                return super.onOptionsItemSelected(item);
+                return (myToggle.onOptionsItemSelected(item)) || super.onOptionsItemSelected(item);
         }
+    }
+
+    private void configureToggle() {
+        myToggle = new ActionBarDrawerToggle(this, myDrawerLayout, R.string.open, R.string.close) {
+            public void onDrawerOpened(View drawerView) {
+                super.onDrawerOpened(drawerView);
+                invalidateOptionsMenu();
+            }
+
+            public void onDrawerClosed(View view) {
+                super.onDrawerClosed(view);
+                invalidateOptionsMenu();
+            }
+
+        };
+        myToggle.setDrawerIndicatorEnabled(true);
+        myDrawerLayout.addDrawerListener(myToggle);
+
+        myToggle.syncState();
+    }
+
+    @Override
+    public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+        switch (i) {
+            case 0:
+                myScene.setBasemap(Basemap.createStreets());
+                break;
+            case 1:
+                myScene.setBasemap(Basemap.createImagery());
+                break;
+            case 2:
+                myScene.setBasemap(Basemap.createTopographic());
+                break;
+            case 3:
+                myScene.setBasemap(Basemap.createOpenStreetMap());
+                break;
+        }
+        myDrawerLayout.closeDrawers();
+        Toast.makeText(getApplicationContext(), "This basemap is selected as: " + basemapNames[i],
+                Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.main, menu);
+        return true;
     }
 
     private void createBookmarks() {
         Viewpoint viewpoint;
         Bookmark myBookmark;
+        Point pt;
+        Camera myCamera;
         //create first bookmark, add to bookmarks, and assign to bookmarkslist
-        viewpoint = new Viewpoint(37.754178, -122.448095, 271261);
-        myBookmark = new Bookmark(getResources().getString(R.string.san_francisco), viewpoint);
+        pt = new Point(35.197085, 138.9079, SpatialReference.create(4326));
+        myCamera = new Camera(35.197085, 138.9079, 4554.184, 66.7696, 70.5252, 0.0);
+        viewpoint = new Viewpoint(pt, 50000, myCamera);
+        myBookmark = new Bookmark(getResources().getString(R.string.hakone), viewpoint);
         myBookmarks.add(myBookmark);
-
         //create second bookmark, add to bookmarks, and assign to bookmarkslist
-        viewpoint = new Viewpoint(37.823785, -122.370654, 67820);
-        myBookmark = new Bookmark(getResources().getString(R.string.treasure_island), viewpoint);
+        pt = new Point(35.6416, 139.71247, SpatialReference.create(4326));
+        myCamera = new Camera(35.6416, 139.71247, 1865.368, 347.6451, 71.62, 0.0);
+        viewpoint = new Viewpoint(pt, 50000, myCamera);
+        myBookmark = new Bookmark(getResources().getString(R.string.shinjuku), viewpoint);
         myBookmarks.add(myBookmark);
-
         //create third bookmark, add to bookmarks, and assign to bookmarkslist
-        viewpoint = new Viewpoint(37.328353, -121.889616, 135630);
-        myBookmark = new Bookmark(getResources().getString(R.string.san_jose), viewpoint);
+        pt = new Point(35.47389, 138.71558, SpatialReference.create(4326));
+        myCamera = new Camera(35.47389, 138.71558, 1787, 39.79, 79.31, 0.0);
+        viewpoint = new Viewpoint(pt, 50000, myCamera);
+        myBookmark = new Bookmark(getResources().getString(R.string.kawaguchi), viewpoint);
         myBookmarks.add(myBookmark);
 
-        //create fourth bookmark, add to bookmarks, and assign to bookmarkslist
-        viewpoint = new Viewpoint(33.761795, -118.238254, 542523);
-        myBookmark = new Bookmark(getResources().getString(R.string.long_beach), viewpoint);
+        pt = new Point(35.2277,138.9889, SpatialReference.create(4326));
+        myCamera = new Camera(35.2277,138.9889,837,66.76,87.147,0.0);
+        viewpoint = new Viewpoint(pt,50000,myCamera);
+        myBookmark = new Bookmark(getResources().getString(R.string.newBookmark), viewpoint);
         myBookmarks.add(myBookmark);
-
-        //create 5th bookmark, add to bookmarks, and assign to bookmarkslist
-        viewpoint = new Viewpoint(37.4458, -122.1564, 67815);
-        myBookmark = new Bookmark(getResources().getString(R.string.palo_alto), viewpoint);
-        myBookmarks.add(myBookmark);
-
 
         for (int i = 0; i < myBookmarks.size(); i++) {
             myBookmarksList.add(i, myBookmarks.get(i).getName());
         }
     }
 
-    private View.OnClickListener myFabOnClickListener = new View.OnClickListener() {
-        @Override
-        public void onClick(View view) {
-            mv.setViewpointAsync(homeViewpoint, 6);
-            Toast.makeText(MainActivity.this, "Back to Home Viewpoint!", Toast.LENGTH_LONG).show();
-        }
-    };
-
-    private void searchNewPlace(){
-        //create a geocoding task using online service
-        final LocatorTask geoCodeServer = new LocatorTask(getString(R.string.geoCode_server));
-        final ListenableFuture<List<GeocodeResult>> geoCodeFuture =
-                geoCodeServer.geocodeAsync(myQuery);
-
-        geoCodeFuture.addDoneListener(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    //retrieve the geocoding results
-                    List<GeocodeResult> geocodeResults = geoCodeFuture.get();
-                    if (geocodeResults != null) {
-                        //Use the first result candidate
-                        GeocodeResult firstCandidate = geocodeResults.get(0);
-                        Double x = firstCandidate.getDisplayLocation().getX();
-                        Double y = firstCandidate.getDisplayLocation().getY();
-                        Viewpoint myViewpoint = new Viewpoint(y,x,50000);
-                        mv.setViewpointAsync(myViewpoint);
-                        Point pt = new Point(x,y, SpatialReference.create(4326));
-                        SimpleMarkerSymbol mySymbol = new
-                                SimpleMarkerSymbol(SimpleMarkerSymbol.Style.DIAMOND, Color.RED,18);
-                        Graphic myGraphic = new Graphic(pt,mySymbol);
-                        GraphicsOverlay myGraphicsOverlay = new GraphicsOverlay();
-                        myGraphicsOverlay.getGraphics().add(myGraphic);
-                        mv.getGraphicsOverlays().add(myGraphicsOverlay);
-                        Toast.makeText(getApplicationContext(),firstCandidate.getLabel(),Toast.LENGTH_LONG).show();
-                    }
-                }
-                catch (InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
-                    Toast.makeText(getApplicationContext(),
-                            getString(R.string.geocoding_error),
-                            Toast.LENGTH_LONG).show();
-                }
-            }
-        });
-    }
 }
 
